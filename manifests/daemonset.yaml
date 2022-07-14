@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: null-device-plugin
+  name: gpu-share-device-plugin
   namespace: kube-system
 spec:
   selector:
     matchLabels:
-      app: null-device-plugin
+      app: gpu-share-device-plugin
   template:
     metadata:
       labels:
-        app: null-device-plugin
+        app: gpu-share-device-plugin
     spec:
       hostNetwork: true
       containers:
-        - image: 10.27.44.1:5000/null-device-plugin
+        - image: fangangan/gpu-share-device-plugin:dev
           imagePullPolicy: Always
-          name: null-device-plugin
+          name: gpu-share-device-plugin
           volumeMounts:
             - name: device-plugin
               mountPath: /var/lib/kubelet/device-plugins
