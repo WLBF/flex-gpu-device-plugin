@@ -1,4 +1,4 @@
-package main
+package plugin
 
 import (
 	"google.golang.org/grpc/credentials/insecure"
@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path"
+	"path/filepath"
 	"time"
 
 	"golang.org/x/net/context"
@@ -13,8 +14,15 @@ import (
 	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 )
 
-// NullDevicePlugin implements the Kubernetes device plugin API
-type NullDevicePlugin struct {
+const (
+	MemoryResourceName = "nvidia.com/memory"
+	MemorySockName     = "nvidia-gpu-memory.sock"
+)
+
+var _ DevicePlugin = &MemoryDevicePlugin{}
+
+// MemoryDevicePlugin implements the Kubernetes device plugin API
+type MemoryDevicePlugin struct {
 	resourceName string
 	socket       string
 
@@ -22,11 +30,11 @@ type NullDevicePlugin struct {
 	stop   chan interface{}
 }
 
-// NewNullDevicePlugin returns an initialized NullDevicePlugin
-func NewNullDevicePlugin(resourceName string, socket string) *NullDevicePlugin {
-	return &NullDevicePlugin{
-		resourceName: resourceName,
-		socket:       socket,
+// NewMemoryDevicePlugin returns an initialized MemoryDevicePlugin
+func NewMemoryDevicePlugin(path string) *MemoryDevicePlugin {
+	return &MemoryDevicePlugin{
+		resourceName: MemoryResourceName,
+		socket:       filepath.Join(path, MemorySockName),
 
 		// These will be reinitialized every
 		// time the plugin server is restarted.
@@ -35,12 +43,12 @@ func NewNullDevicePlugin(resourceName string, socket string) *NullDevicePlugin {
 	}
 }
 
-func (m *NullDevicePlugin) initialize() {
+func (m *MemoryDevicePlugin) initialize() {
 	m.server = grpc.NewServer([]grpc.ServerOption{}...)
 	m.stop = make(chan interface{})
 }
 
-func (m *NullDevicePlugin) cleanup() {
+func (m *MemoryDevicePlugin) cleanup() {
 	close(m.stop)
 	m.server = nil
 	m.stop = nil
@@ -48,7 +56,7 @@ func (m *NullDevicePlugin) cleanup() {
 
 // Start starts the gRPC server, registers the device plugin with the Kubelet,
 // and starts the device healthchecks.
-func (m *NullDevicePlugin) Start() error {
+func (m *MemoryDevicePlugin) Start() error {
 	m.initialize()
 
 	err := m.Serve()
@@ -71,7 +79,7 @@ func (m *NullDevicePlugin) Start() error {
 }
 
 // Stop stops the gRPC server.
-func (m *NullDevicePlugin) Stop() error {
+func (m *MemoryDevicePlugin) Stop() error {
 	if m == nil || m.server == nil {
 		return nil
 	}
@@ -85,7 +93,7 @@ func (m *NullDevicePlugin) Stop() error {
 }
 
 // Serve starts the gRPC server of the device plugin.
-func (m *NullDevicePlugin) Serve() error {
+func (m *MemoryDevicePlugin) Serve() error {
 	os.Remove(m.socket)
 	sock, err := net.Listen("unix", m.socket)
 	if err != nil {
@@ -135,7 +143,7 @@ func (m *NullDevicePlugin) Serve() error {
 }
 
 // Register registers the device plugin for the given resourceName with Kubelet.
-func (m *NullDevicePlugin) Register() error {
+func (m *MemoryDevicePlugin) Register() error {
 	conn, err := m.dial(pluginapi.KubeletSocket, 5*time.Second)
 	if err != nil {
 		return err
@@ -161,7 +169,7 @@ func (m *NullDevicePlugin) Register() error {
 }
 
 // GetDevicePluginOptions returns the values of the optional settings for this plugin
-func (m *NullDevicePlugin) GetDevicePluginOptions(context.Context, *pluginapi.Empty) (*pluginapi.DevicePluginOptions, error) {
+func (m *MemoryDevicePlugin) GetDevicePluginOptions(context.Context, *pluginapi.Empty) (*pluginapi.DevicePluginOptions, error) {
 	options := &pluginapi.DevicePluginOptions{
 		GetPreferredAllocationAvailable: false,
 		PreStartRequired:                false,
@@ -170,7 +178,7 @@ func (m *NullDevicePlugin) GetDevicePluginOptions(context.Context, *pluginapi.Em
 }
 
 // ListAndWatch lists devices and update that list according to the health status
-func (m *NullDevicePlugin) ListAndWatch(e *pluginapi.Empty, s pluginapi.DevicePlugin_ListAndWatchServer) error {
+func (m *MemoryDevicePlugin) ListAndWatch(e *pluginapi.Empty, s pluginapi.DevicePlugin_ListAndWatchServer) error {
 	devices := []*pluginapi.Device{
 		{
 			ID:     "0e2da650-5f9f-4ba2-a42d-592ee5cd3616",
@@ -190,12 +198,12 @@ func (m *NullDevicePlugin) ListAndWatch(e *pluginapi.Empty, s pluginapi.DevicePl
 }
 
 // GetPreferredAllocation returns the preferred allocation from the set of devices specified in the request
-func (m *NullDevicePlugin) GetPreferredAllocation(ctx context.Context, r *pluginapi.PreferredAllocationRequest) (*pluginapi.PreferredAllocationResponse, error) {
+func (m *MemoryDevicePlugin) GetPreferredAllocation(ctx context.Context, r *pluginapi.PreferredAllocationRequest) (*pluginapi.PreferredAllocationResponse, error) {
 	return &pluginapi.PreferredAllocationResponse{}, nil
 }
 
 // Allocate which return list of devices.
-func (m *NullDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.AllocateRequest) (*pluginapi.AllocateResponse, error) {
+func (m *MemoryDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.AllocateRequest) (*pluginapi.AllocateResponse, error) {
 	// return empty AllocateResponse will cause kubelet error
 	return &pluginapi.AllocateResponse{
 		ContainerResponses: []*pluginapi.ContainerAllocateResponse{{
@@ -208,12 +216,12 @@ func (m *NullDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.Allocat
 }
 
 // PreStartContainer is unimplemented for this plugin
-func (m *NullDevicePlugin) PreStartContainer(context.Context, *pluginapi.PreStartContainerRequest) (*pluginapi.PreStartContainerResponse, error) {
+func (m *MemoryDevicePlugin) PreStartContainer(context.Context, *pluginapi.PreStartContainerRequest) (*pluginapi.PreStartContainerResponse, error) {
 	return &pluginapi.PreStartContainerResponse{}, nil
 }
 
 // dial establishes the gRPC communication with the registered device plugin.
-func (m *NullDevicePlugin) dial(unixSocketPath string, timeout time.Duration) (*grpc.ClientConn, error) {
+func (m *MemoryDevicePlugin) dial(unixSocketPath string, timeout time.Duration) (*grpc.ClientConn, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
