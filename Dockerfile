@@ -10,8 +10,8 @@ COPY . .
 
 RUN make build
 
-FROM alpine:3.15
+FROM debian:bullseye-slim
 
-COPY --from=build /build/gpu-share-device-plugin /usr/bin/gpu-share-device-plugin
+COPY --from=build /build/flex-gpu-device-plugin /usr/bin/flex-gpu-device-plugin
 
-ENTRYPOINT ["gpu-share-device-plugin"]
+ENTRYPOINT ["flex-gpu-device-plugin"]

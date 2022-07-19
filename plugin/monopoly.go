@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"github.com/WLBF/flex-gpu-device-plugin/device"
 	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"net"
@@ -15,8 +16,8 @@ import (
 )
 
 const (
-	MonopolyResourceName = "nvidia.com/gpu"
-	MonopolySockName     = "nvidia-gpu-monopoly.sock"
+	MonopolyResourceName = "nvidia.flex.com/gpu"
+	MonopolySockName     = "flex-nvidia-gpu-monopoly.sock"
 )
 
 var _ DevicePlugin = &MonopolyDevicePlugin{}
@@ -25,16 +26,18 @@ var _ DevicePlugin = &MonopolyDevicePlugin{}
 type MonopolyDevicePlugin struct {
 	resourceName string
 	socket       string
+	manager      device.Manager
 
 	server *grpc.Server
 	stop   chan interface{}
 }
 
 // NewMonopolyDevicePlugin returns an initialized MemoryDevicePlugin
-func NewMonopolyDevicePlugin(path string) *MonopolyDevicePlugin {
+func NewMonopolyDevicePlugin(path string, manager device.Manager) *MonopolyDevicePlugin {
 	return &MonopolyDevicePlugin{
 		resourceName: MonopolyResourceName,
 		socket:       filepath.Join(path, MonopolySockName),
+		manager:      manager,
 
 		// These will be reinitialized every
 		// time the plugin server is restarted.
@@ -179,16 +182,7 @@ func (m *MonopolyDevicePlugin) GetDevicePluginOptions(context.Context, *pluginap
 
 // ListAndWatch lists devices and update that list according to the health status
 func (m *MonopolyDevicePlugin) ListAndWatch(e *pluginapi.Empty, s pluginapi.DevicePlugin_ListAndWatchServer) error {
-	devices := []*pluginapi.Device{
-		{
-			ID:     "0e2da650-5f9f-4ba2-a42d-592ee5cd3616",
-			Health: pluginapi.Healthy,
-		},
-		{
-			ID:     "4516ceb8-cafa-45f3-9d93-147c1a9c072b",
-			Health: pluginapi.Unhealthy,
-		},
-	}
+	devices := m.manager.GetGPUDevs()
 
 	if err := s.Send(&pluginapi.ListAndWatchResponse{Devices: devices}); err != nil {
 		return err

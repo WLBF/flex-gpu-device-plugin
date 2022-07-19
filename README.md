@@ -1,3 +1,3 @@
-# null-device-plugin
+# flex-gpu-device-plugin
 
-Simple template for k8s device plugin project.
+Kubernetes device plugin for multiple container nvidia gpu share.

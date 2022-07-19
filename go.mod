@@ -1,4 +1,4 @@
-module github.com/WLBF/null-device-plugin
+module github.com/WLBF/flex-gpu-device-plugin
 
 go 1.17
 
@@ -10,10 +10,13 @@ require (
 )
 
 require (
+	github.com/NVIDIA/go-nvml v0.11.6-0 // indirect
+	github.com/go-logr/logr v1.2.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	golang.org/x/sys v0.0.0-20210831042530-f4d43177bf5e // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/genproto v0.0.0-20210831024726-fe130286e0e2 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
+	k8s.io/klog/v2 v2.70.1 // indirect
 )

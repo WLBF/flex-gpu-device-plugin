@@ -1,7 +1,9 @@
 package plugin
 
 import (
+	"github.com/WLBF/flex-gpu-device-plugin/device"
 	"google.golang.org/grpc/credentials/insecure"
+	"k8s.io/klog/v2"
 	"log"
 	"net"
 	"os"
@@ -15,8 +17,8 @@ import (
 )
 
 const (
-	MemoryResourceName = "nvidia.com/memory"
-	MemorySockName     = "nvidia-gpu-memory.sock"
+	MemoryResourceName = "nvidia.flex.com/memory"
+	MemorySockName     = "flex-nvidia-gpu-memory.sock"
 )
 
 var _ DevicePlugin = &MemoryDevicePlugin{}
@@ -25,16 +27,18 @@ var _ DevicePlugin = &MemoryDevicePlugin{}
 type MemoryDevicePlugin struct {
 	resourceName string
 	socket       string
+	manager      device.Manager
 
 	server *grpc.Server
 	stop   chan interface{}
 }
 
 // NewMemoryDevicePlugin returns an initialized MemoryDevicePlugin
-func NewMemoryDevicePlugin(path string) *MemoryDevicePlugin {
+func NewMemoryDevicePlugin(path string, manager device.Manager) *MemoryDevicePlugin {
 	return &MemoryDevicePlugin{
 		resourceName: MemoryResourceName,
 		socket:       filepath.Join(path, MemorySockName),
+		manager:      manager,
 
 		// These will be reinitialized every
 		// time the plugin server is restarted.
@@ -179,16 +183,8 @@ func (m *MemoryDevicePlugin) GetDevicePluginOptions(context.Context, *pluginapi.
 
 // ListAndWatch lists devices and update that list according to the health status
 func (m *MemoryDevicePlugin) ListAndWatch(e *pluginapi.Empty, s pluginapi.DevicePlugin_ListAndWatchServer) error {
-	devices := []*pluginapi.Device{
-		{
-			ID:     "0e2da650-5f9f-4ba2-a42d-592ee5cd3616",
-			Health: pluginapi.Healthy,
-		},
-		{
-			ID:     "4516ceb8-cafa-45f3-9d93-147c1a9c072b",
-			Health: pluginapi.Healthy,
-		},
-	}
+	devices := m.manager.GetMemoryDevs()
+	klog.V(6).InfoS("memory size", "size", len(devices))
 
 	if err := s.Send(&pluginapi.ListAndWatchResponse{Devices: devices}); err != nil {
 		return err

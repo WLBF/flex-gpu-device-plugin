@@ -1,8 +1,11 @@
 package main
 
 import (
+	"flag"
 	"fmt"
-	"github.com/WLBF/null-device-plugin/plugin"
+	"github.com/WLBF/flex-gpu-device-plugin/device"
+	"github.com/WLBF/flex-gpu-device-plugin/plugin"
+	"k8s.io/klog/v2"
 	"log"
 	"os"
 	"syscall"
@@ -13,15 +16,27 @@ import (
 
 var version string // This should be set at build time to indicate the actual version
 
+var mock = flag.String("mock", "", "mock device memory size(MiB) array, e.g. '16384,8192,8192'")
+
 func main() {
-	if err := start(); err != nil {
+	klog.InitFlags(nil)
+	flag.Parse()
+
+	var manager device.Manager
+	if len(*mock) != 0 {
+		manager = device.NewMockManager(*mock)
+	} else {
+		manager = device.NewGPUManager()
+	}
+
+	if err := start(manager); err != nil {
 		log.SetOutput(os.Stderr)
 		log.Printf("Error: %v", err)
 		os.Exit(1)
 	}
 }
 
-func start() error {
+func start(manager device.Manager) error {
 	log.Println("Starting FS watcher.")
 	watcher, err := newFSWatcher(pluginapi.DevicePluginPath)
 	if err != nil {
@@ -41,8 +56,8 @@ restart:
 	}
 
 	plugins = []plugin.DevicePlugin{
-		plugin.NewMonopolyDevicePlugin(pluginapi.DevicePluginPath),
-		plugin.NewMemoryDevicePlugin(pluginapi.DevicePluginPath),
+		plugin.NewMonopolyDevicePlugin(pluginapi.DevicePluginPath, manager),
+		plugin.NewMemoryDevicePlugin(pluginapi.DevicePluginPath, manager),
 	}
 
 	// Loop through all plugins, starting them if they have any devices
