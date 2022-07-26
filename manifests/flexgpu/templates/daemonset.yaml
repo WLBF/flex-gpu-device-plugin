@@ -14,11 +14,17 @@ spec:
     spec:
       hostNetwork: true
       containers:
-        - image: fangangan/flex-gpu-device-plugin:dev
-          imagePullPolicy: Always
+        - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           name: flex-gpu-device-plugin
-          command: ["flex-gpu-device-plugin"]
-          args: ["-mock=8192,8192,8192", "--v=6"]
+          {{- with .Values.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - name: device-plugin
               mountPath: /var/lib/kubelet/device-plugins
