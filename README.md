@@ -5,7 +5,7 @@ Kubernetes device plugin for multiple container nvidia gpu share.
 ⚠This project is for code example purpose, if you want to use it in production, I am happy to provide support, feel
 free to contact me.
 
-Related project: [WLBF/flex-gpu-scheduler](https://github.com/WLBF/flex-gpu-scheduler)
+Related project: [WLBF/flex-gpu-scheduler-plugin](https://github.com/WLBF/flex-gpu-scheduler-plugin)
 
 ## Overview
 
